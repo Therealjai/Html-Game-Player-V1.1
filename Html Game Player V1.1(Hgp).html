@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>hgp By Jai V1.1</title>
+  <style>
+    /* Add your styling here */
+    #hgp-container {
+      position: relative;
+      width: 330px; /* Adjusted width for a computer monitor shape */
+      height: 400px; /* Adjusted height for a computer monitor shape */
+      background-color: #8F8F8F;
+      border: 10px solid #aaa;
+      border-radius: 20px;
+      margin: 50px auto;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+
+    #mini-screen {
+      width: 100%;
+      height: 60%;
+      border: 2px solid #aaa;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #fff; /* Light-colored background */
+      color: #000;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    #user-code {
+      resize: none;
+      width: 100%;
+      height: 60px;
+      margin-top: 10px;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+
+    #run-button,
+    #load-button,
+    #tap-button {
+      margin-top: 10px;
+      padding: 10px 20px; /* Increased padding */
+      font-size: 13.5px; /* Increased font size */
+      cursor: pointer;
+      width: calc(33.33% - 15px); /* Adjusted width to divide container evenly */
+      box-sizing: border-box; /* Ensure padding is included in the width */
+    }
+
+    #select-game {
+      margin-top: 10px;
+    }
+
+    /* Added style for the color input */
+    #color-picker {
+      margin-top: 10px;
+    }
+
+    /* Style for the debug mode text */
+    #debug-mode-text {
+      display: none;
+      font-size: 13.5px;
+      margin-left: 10px;
+      color: red;
+    }
+
+    /* Style for HTML Runner debug text */
+    #html-runner-text {
+      display: none;
+      font-size: 13.5px;
+      margin-left: 10px;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="hgp-container">
+    <!-- Mini screen for code execution -->
+    <div id="mini-screen"></div>
+
+    <!-- Select game dropdown -->
+    <div style="display: flex; align-items: center;">
+      <select id="select-game" onchange="loadGameCode()">
+        <!-- Add more games as needed -->
+      </select>
+      <!-- Debug mode text -->
+      <span id="debug-mode-text">Debug Mode</span>
+      <!-- HTML Runner Debug text -->
+      <span id="html-runner-text">HTML Runner</span>
+    </div>
+
+    <!-- Textarea for entering HTML code -->
+    <textarea id="user-code" placeholder="Enter HTML code..."></textarea>
+
+    <!-- Color picker input -->
+    <input type="color" id="color-picker" onchange="changePlayerColor()" value="#8F8F8F">
+
+    <!-- Run button -->
+    <button id="run-button" onclick="runCode()">Run Code</button>
+
+    <!-- Load button -->
+    <button id="load-button" onclick="loadFile()">Load Code</button>
+
+    <!-- Tap button -->
+    <button id="tap-button" onclick="simulateTap()">Tap</button>
+  </div>
+
+  <script>
+    // Memory to store codes for different games
+    const codeMemory = {};
+
+    // Add more games as needed
+    const gamesList = {
+      "Game 1": "<h1>Hello, Game 1!</h1>",
+      "Game 2": "<h1>Hello, Game 2!</h1>",
+      "Game 3": "<h1>Hello, Game 3!</h1>",
+      "Game 4": "<h1>Hello, Game 4!</h1>",
+      "Game 5": "<h1>Hello, Game 5!</h1>",
+      "Game 6": "<h1>Hello, Game 6!</h1>"
+    };
+
+    // Populate the select dropdown with games
+    const selectGameDropdown = document.getElementById('select-game');
+    for (const game in gamesList) {
+      const option = document.createElement('option');
+      option.value = game;
+      option.text = game;
+      selectGameDropdown.add(option);
+      codeMemory[game.replace(/\s/g, '')] = gamesList[game];
+    }
+
+    let debugMode = false;
+    let showFPS = false;
+
+    // Function to toggle FPS counter
+    function toggleFPSCounter() {
+      if (showFPS) {
+        const fpsDisplay = document.getElementById('fps-counter');
+        if (fpsDisplay) fpsDisplay.remove();
+        showFPS = false;
+        return;
+      }
+
+      showFPS = true;
+      const fpsDisplay = document.createElement('div');
+      fpsDisplay.id = 'fps-counter';
+      fpsDisplay.style.position = 'absolute';
+      fpsDisplay.style.top = '10px';
+      fpsDisplay.style.left = '10px';
+      fpsDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      fpsDisplay.style.color = 'white';
+      fpsDisplay.style.padding = '5px';
+      fpsDisplay.style.borderRadius = '5px';
+      fpsDisplay.style.fontSize = '12px';
+      fpsDisplay.innerText = 'FPS: Calculating...';
+      document.getElementById('hgp-container').appendChild(fpsDisplay);
+
+      let lastTime = performance.now();
+      let frameCount = 0;
+      let fps = 0;
+
+      function calculateFPS() {
+        if (!showFPS) return; // Stop if FPS is turned off
+
+        const currentTime = performance.now();
+        frameCount++;
+        if (currentTime - lastTime >= 1000) {
+          fps = frameCount;
+          frameCount = 0;
+          lastTime = currentTime;
+          fpsDisplay.innerText = `FPS: `;
+        }
+        requestAnimationFrame(calculateFPS);
+      }
+      calculateFPS();
+    }
+
+    // Debug mode activation
+    function enterDebugMode() {
+      const userCodeTextarea = document.getElementById('user-code');
+      const inputText = userCodeTextarea.value.trim().toLowerCase();
+
+      if (inputText === 'debugjai#') {
+        debugMode = true;
+        document.getElementById('debug-mode-text').style.display = 'inline';
+        document.getElementById('html-runner-text').style.display = 'none';
+        userCodeTextarea.value = ''; // Clear the debug trigger code
+      } else if (debugMode && inputText === 'show fps') {
+        toggleFPSCounter();
+        userCodeTextarea.value = ''; // Clear the input
+      } else if (inputText === 'htmlrunneron') {
+        debugMode = true;
+        document.getElementById('html-runner-text').style.display = 'inline';
+        document.getElementById('debug-mode-text').style.display = 'none';
+        userCodeTextarea.value = ''; // Clear the trigger code
+      }
+    }
+
+    // Run button logic
+    function runCode() {
+      enterDebugMode(); // Check if debug mode should be activated
+
+      const selectedGame = document.getElementById('select-game').value;
+      const userCode = document.getElementById('user-code').value;
+      const miniScreen = document.getElementById('mini-screen');
+
+      try {
+        // Clear previous content
+        miniScreen.innerHTML = '';
+
+        // Create iframe element and append it to the mini screen
+        const iframe = document.createElement('iframe');
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        miniScreen.appendChild(iframe);
+        
+        if (debugMode) {
+          const userCodeTextarea = document.getElementById('user-code');
+
+          // Update the iframe content live as user types
+          userCodeTextarea.addEventListener('input', () => {
+            iframe.contentDocument.open();
+            iframe.contentDocument.write(userCodeTextarea.value);
+            iframe.contentDocument.close();
+          });
+        }
+
+        // Check if HTML runner logic is activated
+        if (document.getElementById('html-runner-text').style.display === 'inline') {
+          iframe.contentDocument.write(userCode);
+          iframe.contentDocument.close();
+        } else {
+          // Write and execute the user code in the iframe
+          iframe.contentDocument.write(userCode);
+        }
+
+        // Save the code to memory for the selected game
+        codeMemory[selectedGame.replace(/\s/g, '')] = userCode;
+      } catch (error) {
+        console.error("Error executing code:", error);
+      }
+    }
+
+    function loadFile() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.html,.txt,.hgp';
+
+      input.onchange = (event) => {
+        const file = event.target.files[0];
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            document.getElementById('user-code').value = e.target.result;
+          };
+
+          reader.readAsText(file);
+        }
+      };
+
+      input.click();
+    }
+
+    function loadGameCode() {
+      const selectedGame = document.getElementById('select-game').value;
+      const userCodeTextarea = document.getElementById('user-code');
+      userCodeTextarea.value = codeMemory[selectedGame.replace(/\s/g, '')];
+    }
+
+    function changePlayerColor() {
+      const colorPicker = document.getElementById('color-picker');
+      const hgpContainer = document.getElementById('hgp-container');
+      hgpContainer.style.backgroundColor = colorPicker.value;
+    }
+
+    function simulateTap() {
+      const miniScreen = document.getElementById('mini-screen');
+      const iframe = miniScreen.querySelector('iframe');
+
+      if (iframe) {
+        const iframeRect = iframe.getBoundingClientRect();
+        const tapX = iframeRect.width / 2;
+        const tapY = iframeRect.height / 2;
+
+        const event = new MouseEvent('click', {
+          view: iframe.contentWindow,
+          bubbles: true,
+          cancelable: true,
+          clientX: tapX,
+          clientY: tapY
+        });
+
+        iframe.contentDocument.elementFromPoint(tapX, tapY).dispatchEvent(event);
+      }
+    }
+  </script>
+</body>
+</html>
